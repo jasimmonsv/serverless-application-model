@@ -58,7 +58,7 @@
           ]
         },
         "Timeout": 3,
-        "Runtime": "nodejs8.10"
+        "Runtime": "nodejs12.x"
       },
       "Condition": "explicithello2condition"
     },
@@ -67,6 +67,12 @@
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
         ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -80,28 +86,6 @@
                 "Service": [
                   "lambda.amazonaws.com"
                 ]
-              }
-            }
-          ]
-        }
-      },
-      "Condition": "implicithello2condition"
-    },
-    "implicithello2ApiEventPermissionTest": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:invokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "FunctionName": {
-          "Ref": "implicithello2"
-        },
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/implicit/hello2",
-            {
-              "__Stage__": "*",
-              "__ApiId__": {
-                "Ref": "ServerlessRestApi"
               }
             }
           ]
@@ -130,7 +114,7 @@
           ]
         },
         "Timeout": 3,
-        "Runtime": "nodejs8.10"
+        "Runtime": "nodejs12.x"
       },
       "Condition": "explicithello1condition"
     },
@@ -159,32 +143,10 @@
       },
       "Condition": "ServerlessRestApiCondition"
     },
-    "explicithello2ApiEventPermissionTest": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:invokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "FunctionName": {
-          "Ref": "explicithello2"
-        },
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/explicit/hello2",
-            {
-              "__Stage__": "*",
-              "__ApiId__": {
-                "Ref": "explicitapi"
-              }
-            }
-          ]
-        }
-      },
-      "Condition": "explicithello2condition"
-    },
     "explicithello1ApiEventPermissionProd": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "Action": "lambda:invokeFunction",
+        "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "FunctionName": {
           "Ref": "explicithello1"
@@ -193,7 +155,7 @@
           "Fn::Sub": [
             "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/explicit/hello1",
             {
-              "__Stage__": "Prod",
+              "__Stage__": "*",
               "__ApiId__": {
                 "Ref": "explicitapi"
               }
@@ -224,14 +186,14 @@
           ]
         },
         "Timeout": 3,
-        "Runtime": "nodejs8.10"
+        "Runtime": "nodejs12.x"
       },
       "Condition": "implicithello2condition"
     },
     "implicithello1ApiEventPermissionProd": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "Action": "lambda:invokeFunction",
+        "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "FunctionName": {
           "Ref": "implicithello1"
@@ -240,7 +202,7 @@
           "Fn::Sub": [
             "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/implicit/hello1",
             {
-              "__Stage__": "Prod",
+              "__Stage__": "*",
               "__ApiId__": {
                 "Ref": "ServerlessRestApi"
               }
@@ -255,6 +217,12 @@
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
         ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -296,14 +264,14 @@
           ]
         },
         "Timeout": 3,
-        "Runtime": "nodejs8.10"
+        "Runtime": "nodejs12.x"
       },
       "Condition": "implicithello1condition"
     },
     "explicithello2ApiEventPermissionProd": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "Action": "lambda:invokeFunction",
+        "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "FunctionName": {
           "Ref": "explicithello2"
@@ -312,7 +280,7 @@
           "Fn::Sub": [
             "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/explicit/hello2",
             {
-              "__Stage__": "Prod",
+              "__Stage__": "*",
               "__ApiId__": {
                 "Ref": "explicitapi"
               }
@@ -424,7 +392,7 @@
     "implicithello2ApiEventPermissionProd": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "Action": "lambda:invokeFunction",
+        "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "FunctionName": {
           "Ref": "implicithello2"
@@ -433,7 +401,7 @@
           "Fn::Sub": [
             "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/implicit/hello2",
             {
-              "__Stage__": "Prod",
+              "__Stage__": "*",
               "__ApiId__": {
                 "Ref": "ServerlessRestApi"
               }
@@ -443,33 +411,17 @@
       },
       "Condition": "implicithello2condition"
     },
-    "explicithello1ApiEventPermissionTest": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:invokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "FunctionName": {
-          "Ref": "explicithello1"
-        },
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/explicit/hello1",
-            {
-              "__Stage__": "*",
-              "__ApiId__": {
-                "Ref": "explicitapi"
-              }
-            }
-          ]
-        }
-      },
-      "Condition": "explicithello1condition"
-    },
     "explicithello1Role": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
         ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -489,28 +441,6 @@
         }
       },
       "Condition": "explicithello1condition"
-    },
-    "implicithello1ApiEventPermissionTest": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:invokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "FunctionName": {
-          "Ref": "implicithello1"
-        },
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/implicit/hello1",
-            {
-              "__Stage__": "*",
-              "__ApiId__": {
-                "Ref": "ServerlessRestApi"
-              }
-            }
-          ]
-        }
-      },
-      "Condition": "implicithello1condition"
     },
     "explicitapiDeployment9fcb053eda": {
       "Type": "AWS::ApiGateway::Deployment",
@@ -616,6 +546,12 @@
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
         ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",

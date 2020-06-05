@@ -1,8 +1,12 @@
+Parameters:
+  BMT:
+    Type: String
+    Default: 'image~1jpg'
 Globals:
   Api:
     BinaryMediaTypes:
-      - image/jpg
-      - {"Fn::Join": ["/", ["image", "png"]]}
+      - image~1gif
+      - {"Fn::Join": ["~1", ["image", "png"]]}
 
 Resources:
   ImplicitApiFunction:
@@ -10,7 +14,7 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/member_portal.zip
       Handler: index.gethtml
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Events:
         GetHtml:
           Type: Api
@@ -24,4 +28,5 @@ Resources:
       StageName: Prod
       DefinitionUri: s3://sam-demo-bucket/webpage_swagger.json
       BinaryMediaTypes:
-        - image/gif
+        - application~1octet-stream
+        - !Ref BMT

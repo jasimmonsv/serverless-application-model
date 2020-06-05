@@ -62,11 +62,22 @@ DeadLetterQueue                    All
 DeploymentPreference               All
 Layers                             All
 AutoPublishAlias             Ref of a CloudFormation Parameter  Alias resources created by SAM uses a LocicalId <FunctionLogicalId+AliasName>. So SAM either needs a string for alias name, or a Ref to template Parameter that SAM can resolve into a string.
+AutoPublishCodeSha256              All
 ReservedConcurrentExecutions       All
+EventInvokeConfig                  All
 ============================ ================================== ========================
 
 Events Properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cognito
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+======================== ================================== ========================
+     Property Name        Intrinsic(s) Supported            Reasons
+======================== ================================== ========================
+UserPool                 Ref of a AWS::Cognito::UserPool    Properties in the AWS::Cognito::UserPool are used to construct different attributes.
+Trigger                  All
+======================== ================================== ========================
 
 S3
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,9 +136,22 @@ Schedule
 ======================== ================================== ========================
 Schedule                 All
 Input                    All
+Name                     All
+Description              All
+Enabled                  All
 ======================== ================================== ========================
 
-CloudWatchEvent
+CloudWatchEvent (superseded by EventBridgeRule, see below)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+======================== ================================== ========================
+     Property Name        Intrinsic(s) Supported            Reasons
+======================== ================================== ========================
+Pattern                  All
+Input                    All
+InputPath                All
+======================== ================================== ========================
+
+EventBridgeRule
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ======================== ================================== ========================
      Property Name        Intrinsic(s) Supported            Reasons
@@ -171,6 +195,8 @@ BinaryMediaTypes                    All
 MinimumCompressionSize              All
 Cors                                All
 TracingEnabled                      All
+OpenApiVersion                      None
+Domain                              All
 ================================== ======================== ========================
 
 
@@ -182,7 +208,7 @@ AWS::Serverless::Application
 ================================== ======================== ========================
 Location                            None                     SAM expects exact values for the Location property
 Parameters                          All
-NotificationArns                    All
+NotificationARNs                    All
 Tags                                All
 TimeoutInMinutes                    All
 ================================== ======================== ========================

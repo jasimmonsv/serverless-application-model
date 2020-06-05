@@ -336,6 +336,27 @@
     "AWS::Serverless::Function.CloudWatchEventEvent": {
       "additionalProperties": false,
       "properties": {
+        "EventBusName": {
+          "type": "string"
+        },
+        "Input": {
+          "type": "string"
+        },
+        "InputPath": {
+          "type": "string"
+        },
+        "Pattern": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "Pattern"
+      ],
+      "type": "object"
+    },
+    "AWS::Serverless::Function.EventBridgeRule": {
+      "additionalProperties": false,
+      "properties": {
         "Input": {
           "type": "string"
         },
@@ -381,6 +402,39 @@
         "TargetArn",
         "Type"
       ],
+      "type": "object"
+    },
+    "AWS::Serverless::Function.CognitoEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "UserPool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "Trigger": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "required": [
+        "UserPool",
+        "Trigger"
+      ],      
       "type": "object"
     },
     "AWS::Serverless::Function.DynamoDBEvent": {
@@ -436,6 +490,9 @@
               "$ref": "#/definitions/AWS::Serverless::Function.CloudWatchEventEvent"
             },
             {
+              "$ref": "#/definitions/AWS::Serverless::Function.EventBridgeRule"
+            },
+            {
               "$ref": "#/definitions/AWS::Serverless::Function.LogEvent"
             },
             {
@@ -443,6 +500,9 @@
             },
             {
               "$ref": "#/definitions/AWS::Serverless::Function.AlexaSkillEvent"
+            },
+            {
+              "$ref": "#/definitions/AWS::Serverless::Function.CognitoEvent"
             }
           ]
         },
@@ -632,6 +692,9 @@
         "Topic": {
           "type": "string"
         },
+        "Region": {
+          "type": "string"
+        },
         "FilterPolicy": {
           "type": "object"
         }
@@ -649,7 +712,16 @@
         },
         "Schedule": {
           "type": "string"
-        }
+        },
+	"Name": {
+	  "type": "string"
+	},
+	"Description": {
+	  "type": "string"
+	},
+	"Enabled": {
+	  "type": "boolean"
+	}
       },
       "required": [
         "Schedule"

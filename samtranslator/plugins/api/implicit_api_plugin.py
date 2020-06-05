@@ -1,11 +1,9 @@
 import copy
 
-from samtranslator.model.naming import GeneratedLogicalId
 from samtranslator.model.intrinsics import make_combined_condition
 from samtranslator.public.plugins import BasePlugin
-from samtranslator.public.swagger import SwaggerEditor
 from samtranslator.public.exceptions import InvalidDocumentException, InvalidResourceException, InvalidEventException
-from samtranslator.public.sdk.resource import SamResourceType, SamResource
+from samtranslator.public.sdk.resource import SamResourceType
 from samtranslator.public.sdk.template import SamTemplate
 
 
@@ -31,18 +29,22 @@ class ImplicitApiPlugin(BasePlugin):
 
     """
 
-    def __init__(self):
+    def __init__(self, name):
         """
         Initialize the plugin
         """
-        super(ImplicitApiPlugin, self).__init__(ImplicitApiPlugin.__name__)
+        super(ImplicitApiPlugin, self).__init__(name)
 
-        self.implicit_api_logical_id = GeneratedLogicalId.implicit_api()
         self.existing_implicit_api_resource = None
         # dict containing condition (or None) for each resource path+method for all APIs. dict format:
         # {api_id: {path: {method: condition_name_or_None}}}
         self.api_conditions = {}
-        self.implicit_api_condition = 'ServerlessRestApiCondition'
+        self._setup_api_properties()
+
+    def _setup_api_properties(self):
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )
 
     def on_before_transform_template(self, template_dict):
         """
@@ -64,18 +66,20 @@ class ImplicitApiPlugin(BasePlugin):
         # removing the "ServerlessRestApi" resource, we just restore what the author defined.
         self.existing_implicit_api_resource = copy.deepcopy(template.get(self.implicit_api_logical_id))
 
-        template.set(self.implicit_api_logical_id, ImplicitApiResource().to_dict())
+        template.set(self.implicit_api_logical_id, self._generate_implicit_api_resource())
 
         errors = []
-        for logicalId, function in template.iterate(SamResourceType.Function.value):
+        for logicalId, resource in template.iterate(
+            {SamResourceType.Function.value, SamResourceType.StateMachine.value}
+        ):
 
-            api_events = self._get_api_events(function)
-            condition = function.condition
+            api_events = self._get_api_events(resource)
+            condition = resource.condition
             if len(api_events) == 0:
                 continue
 
             try:
-                self._process_api_events(function, api_events, template, condition)
+                self._process_api_events(resource, api_events, template, condition)
 
             except InvalidEventException as ex:
                 errors.append(InvalidResourceException(logicalId, ex.message))
@@ -87,11 +91,11 @@ class ImplicitApiPlugin(BasePlugin):
         if len(errors) > 0:
             raise InvalidDocumentException(errors)
 
-    def _get_api_events(self, function):
+    def _get_api_events(self, resource):
         """
-        Method to return a dictionary of API Events on the function
+        Method to return a dictionary of API Events on the resource
 
-        :param SamResource function: Function Resource object
+        :param SamResource resource: SAM Resource object
         :return dict: Dictionary of API events along with any other configuration passed to it.
             Example: {
                 FooEvent: {Path: "/foo", Method: "post", RestApiId: blah, MethodSettings: {<something>},
@@ -101,53 +105,35 @@ class ImplicitApiPlugin(BasePlugin):
             }
         """
 
-        if not (function.valid() and
-                isinstance(function.properties, dict) and
-                isinstance(function.properties.get("Events"), dict)
-                ):
-            # Function resource structure is invalid.
+        if not (
+            resource.valid()
+            and isinstance(resource.properties, dict)
+            and isinstance(resource.properties.get("Events"), dict)
+        ):
+            # Resource structure is invalid.
             return {}
 
         api_events = {}
-        for event_id, event in function.properties["Events"].items():
+        for event_id, event in resource.properties["Events"].items():
 
-            if event and isinstance(event, dict) and event.get("Type") == "Api":
+            if event and isinstance(event, dict) and event.get("Type") == self.api_event_type:
                 api_events[event_id] = event
 
         return api_events
 
-    def _process_api_events(self, function, api_events, template, condition=None):
+    def _process_api_events(self, resource, api_events, template, condition=None):
         """
         Actually process given API events. Iteratively adds the APIs to Swagger JSON in the respective Serverless::Api
         resource from the template
 
-        :param SamResource function: SAM Function containing the API events to be processed
-        :param dict api_events: API Events extracted from the function. These events will be processed
+        :param SamResource resource: SAM Resource containing the API events to be processed
+        :param dict api_events: API Events extracted from the resource. These events will be processed
         :param SamTemplate template: SAM Template where Serverless::Api resources can be found
-        :param str condition: optional; this is the condition that is on the function with the API event
+        :param str condition: optional; this is the condition that is on the resource with the API event
         """
-
-        for logicalId, event in api_events.items():
-
-            event_properties = event.get("Properties", {})
-            if not event_properties:
-                continue
-
-            self._add_implicit_api_id_if_necessary(event_properties)
-
-            api_id = self._get_api_id(event_properties)
-            path = event_properties["Path"]
-            method = event_properties["Method"]
-            api_dict = self.api_conditions.setdefault(api_id, {})
-            method_conditions = api_dict.setdefault(path, {})
-            method_conditions[method] = condition
-
-            self._add_api_to_swagger(logicalId, event_properties, template)
-
-            api_events[logicalId] = event
-
-        # We could have made changes to the Events structure. Write it back to function
-        function.properties["Events"].update(api_events)
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )
 
     def _add_implicit_api_id_if_necessary(self, event_properties):
         """
@@ -157,8 +143,9 @@ class ImplicitApiPlugin(BasePlugin):
 
         :param dict event_properties: Dictionary of event properties
         """
-        if "RestApiId" not in event_properties:
-            event_properties["RestApiId"] = {"Ref": self.implicit_api_logical_id}
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )
 
     def _add_api_to_swagger(self, event_id, event_properties, template):
         """
@@ -175,15 +162,21 @@ class ImplicitApiPlugin(BasePlugin):
 
         # RestApiId is not pointing to a valid  API resource
         if isinstance(api_id, dict) or not template.get(api_id):
-            raise InvalidEventException(event_id,
-                                        "RestApiId must be a valid reference to an 'AWS::Serverless::Api' resource "
-                                        "in same template")
+            raise InvalidEventException(
+                event_id,
+                self.api_id_property
+                + " must be a valid reference to an '"
+                + self._get_api_resource_type_name()
+                + "' resource in same template.",
+            )
 
         # Make sure Swagger is valid
         resource = template.get(api_id)
-        if not (resource and
-                isinstance(resource.properties, dict) and
-                SwaggerEditor.is_valid(resource.properties.get("DefinitionBody"))):
+        if not (
+            resource
+            and isinstance(resource.properties, dict)
+            and self.editor.is_valid(resource.properties.get("DefinitionBody"))
+        ):
             # This does not have an inline Swagger. Nothing can be done about it.
             return
 
@@ -202,10 +195,10 @@ class ImplicitApiPlugin(BasePlugin):
 
         path = event_properties["Path"]
         method = event_properties["Method"]
-        editor = SwaggerEditor(swagger)
+        editor = self.editor(swagger)
         editor.add_path(path, method)
 
-        resource.properties["DefinitionBody"] = editor.swagger
+        resource.properties["DefinitionBody"] = self._get_api_definition_from_editor(editor)
         template.set(api_id, resource)
 
     def _get_api_id(self, event_properties):
@@ -214,7 +207,7 @@ class ImplicitApiPlugin(BasePlugin):
 
         Handles case where API id is not specified or is a reference to a logical id.
         """
-        api_id = event_properties.get("RestApiId")
+        api_id = event_properties.get(self.api_id_property)
         if isinstance(api_id, dict) and "Ref" in api_id:
             api_id = api_id["Ref"]
         return api_id
@@ -231,23 +224,28 @@ class ImplicitApiPlugin(BasePlugin):
         # Add a condition to the API resource IFF all of its resource+methods are associated with serverless functions
         # containing conditions.
         implicit_api_conditions = self.api_conditions[self.implicit_api_logical_id]
-        all_resource_method_conditions = set([condition
-                                              for path, method_conditions in implicit_api_conditions.items()
-                                              for method, condition in method_conditions.items()])
+        all_resource_method_conditions = set(
+            [
+                condition
+                for path, method_conditions in implicit_api_conditions.items()
+                for method, condition in method_conditions.items()
+            ]
+        )
         at_least_one_resource_method = len(all_resource_method_conditions) > 0
         all_resource_methods_contain_conditions = None not in all_resource_method_conditions
         if at_least_one_resource_method and all_resource_methods_contain_conditions:
-            implicit_api_resource = template_dict.get('Resources').get(self.implicit_api_logical_id)
+            implicit_api_resource = template_dict.get("Resources").get(self.implicit_api_logical_id)
             if len(all_resource_method_conditions) == 1:
                 condition = all_resource_method_conditions.pop()
-                implicit_api_resource['Condition'] = condition
+                implicit_api_resource["Condition"] = condition
             else:
                 # If multiple functions with multiple different conditions reference the Implicit Api, we need to
                 # aggregate those conditions in order to conditionally create the Implicit Api. See RFC:
                 # https://github.com/awslabs/serverless-application-model/issues/758
-                implicit_api_resource['Condition'] = self.implicit_api_condition
+                implicit_api_resource["Condition"] = self.implicit_api_condition
                 self._add_combined_condition_to_template(
-                    template_dict, self.implicit_api_condition, all_resource_method_conditions)
+                    template_dict, self.implicit_api_condition, all_resource_method_conditions
+                )
 
     def _add_combined_condition_to_template(self, template_dict, condition_name, conditions_to_combine):
         """
@@ -260,9 +258,9 @@ class ImplicitApiPlugin(BasePlugin):
         """
         # defensive precondition check
         if not conditions_to_combine or len(conditions_to_combine) < 2:
-            raise ValueError('conditions_to_combine must have at least 2 conditions')
+            raise ValueError("conditions_to_combine must have at least 2 conditions")
 
-        template_conditions = template_dict.setdefault('Conditions', {})
+        template_conditions = template_dict.setdefault("Conditions", {})
         new_template_conditions = make_combined_condition(sorted(list(conditions_to_combine)), condition_name)
         for name, definition in new_template_conditions.items():
             template_conditions[name] = definition
@@ -279,12 +277,12 @@ class ImplicitApiPlugin(BasePlugin):
         that composite condition is added to the resource path.
         """
 
-        for api_id, api in template.iterate(SamResourceType.Api.value):
-            if not api.properties.get('__MANAGE_SWAGGER'):
+        for api_id, api in template.iterate({self.api_type}):
+            if not api.properties.get("__MANAGE_SWAGGER"):
                 continue
 
             swagger = api.properties.get("DefinitionBody")
-            editor = SwaggerEditor(swagger)
+            editor = self.editor(swagger)
 
             for path in editor.iter_on_path():
                 all_method_conditions = set(
@@ -298,11 +296,20 @@ class ImplicitApiPlugin(BasePlugin):
                     else:
                         path_condition_name = self._path_condition_name(api_id, path)
                         self._add_combined_condition_to_template(
-                            template.template_dict, path_condition_name, all_method_conditions)
+                            template.template_dict, path_condition_name, all_method_conditions
+                        )
                         editor.make_path_conditional(path, path_condition_name)
 
-            api.properties["DefinitionBody"] = editor.swagger
+            api.properties["DefinitionBody"] = self._get_api_definition_from_editor(editor)  # TODO make static method
             template.set(api_id, api)
+
+    def _get_api_definition_from_editor(self, editor):
+        """
+        Required function that returns the api body from the respective editor
+        """
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )
 
     def _path_condition_name(self, api_id, path):
         """
@@ -311,8 +318,8 @@ class ImplicitApiPlugin(BasePlugin):
         # only valid characters for CloudFormation logical id are [A-Za-z0-9], but swagger paths can contain
         # slashes and curly braces for templated params, e.g., /foo/{customerId}. So we'll replace
         # non-alphanumeric characters.
-        path_logical_id = path.replace('/', 'SLASH').replace('{', 'OB').replace('}', 'CB')
-        return '{}{}PathCondition'.format(api_id, path_logical_id)
+        path_logical_id = path.replace("/", "SLASH").replace("{", "OB").replace("}", "CB")
+        return "{}{}PathCondition".format(api_id, path_logical_id)
 
     def _maybe_remove_implicit_api(self, template):
         """
@@ -334,30 +341,18 @@ class ImplicitApiPlugin(BasePlugin):
             else:
                 template.delete(self.implicit_api_logical_id)
 
+    def _generate_implicit_api_resource(self):
+        """
+        Helper function implemented by child classes that create a new implicit API resource
+        """
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )
 
-class ImplicitApiResource(SamResource):
-    """
-    Returns a AWS::Serverless::Api resource representing the Implicit APIs. The returned resource includes
-    the empty swagger along with default values for other properties.
-    """
-
-    def __init__(self):
-        swagger = SwaggerEditor.gen_skeleton()
-
-        resource = {
-            "Type": SamResourceType.Api.value,
-            "Properties": {
-
-                # Because we set the StageName to be constant value here, customers cannot override StageName with
-                # Globals. This is because, if a property is specified in both Globals and the resource, the resource
-                # one takes precedence.
-                "StageName": "Prod",
-
-                "DefinitionBody": swagger,
-                # Internal property that means Event source code can add Events. Used only for implicit APIs, to
-                # prevent back compatibility issues for explicit APIs
-                "__MANAGE_SWAGGER": True
-            }
-        }
-
-        super(ImplicitApiResource, self).__init__(resource)
+    def _get_api_resource_type_name(self):
+        """
+        Returns the type of API resource
+        """
+        raise NotImplementedError(
+            "Method _setup_api_properties() must be implemented in a " "subclass of ImplicitApiPlugin"
+        )

@@ -14,7 +14,7 @@
             "Arn"
           ]
         },
-        "Runtime": "nodejs4.3",
+        "Runtime": "nodejs12.x",
         "Tags": [
           {
             "Value": "SAM",
@@ -74,30 +74,11 @@
           }
         ],
         "ProvisionedThroughput": {
-          "WriteCapacityUnits": "5",
-          "ReadCapacityUnits": "5"
+          "WriteCapacityUnits": 5,
+          "ReadCapacityUnits": 5
         }
       },
       "DependsOn": "MySamTable"
-    },
-    "MyFunctionMyApiPermissionTest": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:invokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "FunctionName": {
-          "Ref": "MyFunction"
-        },
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws-us-gov:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/",
-            {
-              "__Stage__": "*",
-              "__ApiId__": "MyExplicitApi"
-            }
-          ]
-        }
-      }
     },
     "MyExplicitApidevStage": {
       "Type": "AWS::ApiGateway::Stage",
@@ -135,6 +116,12 @@
         "ManagedPolicyArns": [
           "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
+        ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -156,7 +143,7 @@
     "MyFunctionMyApiPermissiondev": {
       "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "Action": "lambda:invokeFunction",
+        "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "FunctionName": {
           "Ref": "MyFunction"
@@ -165,7 +152,7 @@
           "Fn::Sub": [
             "arn:aws-us-gov:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/",
             {
-              "__Stage__": "dev",
+              "__Stage__": "*",
               "__ApiId__": "MyExplicitApi"
             }
           ]

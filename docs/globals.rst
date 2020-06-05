@@ -68,10 +68,13 @@ Currently, the following resources and properties are being supported:
       AutoPublishAlias:
       DeploymentPreference:
       PermissionsBoundary:
+      ReservedConcurrentExecutions:
+      EventInvokeConfig:
 
     Api:
       # Properties of AWS::Serverless::Api
       # Also works with Implicit APIs
+      Auth:
       Name:
       DefinitionUri:
       CacheClusterEnabled:
@@ -82,13 +85,27 @@ Currently, the following resources and properties are being supported:
       BinaryMediaTypes:
       MinimumCompressionSize:
       Cors:
+      GatewayResponses:
       AccessLogSetting:
       CanarySetting:
       TracingEnabled:
+      OpenApiVersion:
+      Domain:
+
+    HttpApi:
+      # Properties of AWS::Serverless::HttpApi
+      # Also works with Implicit APIs
+      Auth:
+      CorsConfiguration:
+      AccessLogSettings:
+      Tags:
+      DefaultRouteSettings:
+      RouteSettings:
+      Domain:
 
     SimpleTable:
       # Properties of AWS::Serverless::SimpleTable
-      SSESpecification
+      SSESpecification:
 
 Implicit APIs
 ~~~~~~~~~~~~~
@@ -114,6 +131,12 @@ issues.
 
 * StageName
 * DefinitionBody
+
+**AWS::Serverless::HttpApi:**
+
+* StageName
+* DefinitionBody
+* DefinitionUri
 
 Overridable
 -----------

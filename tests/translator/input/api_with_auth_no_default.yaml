@@ -29,12 +29,18 @@ Resources:
             Identity:
               Headers:
                 - Authorization1
+  MyAuthFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://bucket/key
+      Handler: index.handler
+      Runtime: nodejs12.x
   MyFn:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: s3://bucket/key
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs12.x
       Events:
         Cognito:
           Type: Api
@@ -54,3 +60,16 @@ Resources:
             RestApiId: !Ref MyApiWithLambdaRequestAuth
             Method: get
             Path: /lambda-request
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: UserPoolName
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false

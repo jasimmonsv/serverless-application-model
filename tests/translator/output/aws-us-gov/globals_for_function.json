@@ -5,9 +5,24 @@
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole", 
-          "arn:aws-us-gov:iam::aws:policy/AWSXrayWriteOnlyAccess"
+          "arn:aws-us-gov:iam::aws:policy/AWSXrayWriteOnlyAccess",
+          "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
         ], 
         "PermissionsBoundary": "arn:aws:1234:iam:boundary/OverridePermissionsBoundary",
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          },
+          {
+            "Value": "newvalue1",
+            "Key": "newtag1"
+          },
+          {
+            "Value": "value1",
+            "Key": "tag1"
+          }
+        ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17", 
           "Statement": [
@@ -29,6 +44,14 @@
     "FunctionWithOverrides": {
       "Type": "AWS::Lambda::Function", 
       "Properties": {
+        "Layers": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:MyLayer:1"
+          }, 
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:MyLayer2:2"
+          }
+        ], 
         "TracingConfig": {
           "Mode": "PassThrough"
         }, 
@@ -37,6 +60,9 @@
           "S3Key": "hello.zip"
         }, 
         "VpcConfig": {
+          "SubnetIds": [
+            "sub-id-2"
+          ], 
           "SecurityGroupIds": [
             "sg-edcd9784", 
             "sg-123"
@@ -56,6 +82,7 @@
             "Key": "tag1"
           }
         ], 
+        "ReservedConcurrentExecutions": 100, 
         "MemorySize": 512, 
         "Environment": {
           "Variables": {
@@ -72,11 +99,7 @@
           ]
         }, 
         "Timeout": 100, 
-        "Runtime": "nodejs4.3",
-        "Layers": [
-          { "Fn::Sub": "arn:${AWS:Partition}:lambda:${AWS:Region}:${AWS:AccountId}:layer:MyLayer:1" },
-          { "Fn::Sub": "arn:${AWS:Partition}:lambda:${AWS:Region}:${AWS:AccountId}:layer:MyLayer2:2" }
-        ]
+        "Runtime": "nodejs12.x"
       }
     }, 
     "MinimalFunctionRole": {
@@ -84,9 +107,20 @@
       "Properties": {
         "ManagedPolicyArns": [
           "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole", 
-          "arn:aws-us-gov:iam::aws:policy/AWSXrayWriteOnlyAccess"
+          "arn:aws-us-gov:iam::aws:policy/AWSXrayWriteOnlyAccess",
+          "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
         ], 
         "PermissionsBoundary": "arn:aws:1234:iam:boundary/CustomerCreatedPermissionsBoundary",
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          },
+          {
+            "Value": "value1",
+            "Key": "tag1"
+          }
+        ],
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17", 
           "Statement": [
@@ -110,7 +144,7 @@
       "Properties": {
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "FunctionWithOverridesVersion640128d35d", 
+            "FunctionWithOverridesVersion096ed3b52b",
             "Version"
           ]
         }, 
@@ -123,6 +157,11 @@
     "MinimalFunction": {
       "Type": "AWS::Lambda::Function", 
       "Properties": {
+        "Layers": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:MyLayer:1"
+          }
+        ], 
         "TracingConfig": {
           "Mode": "Active"
         }, 
@@ -131,6 +170,9 @@
           "S3Key": "global.zip"
         }, 
         "VpcConfig": {
+          "SubnetIds": [
+            "sub-id-2"
+          ], 
           "SecurityGroupIds": [
             "sg-edcd9784"
           ]
@@ -145,6 +187,7 @@
             "Key": "tag1"
           }
         ], 
+        "ReservedConcurrentExecutions": 50, 
         "MemorySize": 1024, 
         "Environment": {
           "Variables": {
@@ -160,10 +203,7 @@
           ]
         }, 
         "Timeout": 30, 
-        "Runtime": "python2.7",
-        "Layers": [
-          { "Fn::Sub": "arn:${AWS:Partition}:lambda:${AWS:Region}:${AWS:AccountId}:layer:MyLayer:1" }
-        ]
+        "Runtime": "python2.7"
       }
     }, 
     "MinimalFunctionAliaslive": {
@@ -171,7 +211,7 @@
       "Properties": {
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "MinimalFunctionVersionfb7aeaa544", 
+            "MinimalFunctionVersion0a06fc8fb1",
             "Version"
           ]
         }, 
@@ -181,7 +221,7 @@
         "Name": "live"
       }
     }, 
-    "FunctionWithOverridesVersion640128d35d": {
+    "FunctionWithOverridesVersion096ed3b52b": {
       "DeletionPolicy": "Retain", 
       "Type": "AWS::Lambda::Version", 
       "Properties": {
@@ -190,7 +230,7 @@
         }
       }
     }, 
-    "MinimalFunctionVersionfb7aeaa544": {
+    "MinimalFunctionVersion0a06fc8fb1": {
       "DeletionPolicy": "Retain", 
       "Type": "AWS::Lambda::Version", 
       "Properties": {

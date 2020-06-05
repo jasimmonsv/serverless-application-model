@@ -8,6 +8,7 @@ Globals:
       Authorizers:
         MyCognitoAuth:
           UserPoolArn: !GetAtt MyUserPool.Arn
+      ApiKeyRequired: true
     Variables:
       SomeVar: Value
 
@@ -17,7 +18,7 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/member_portal.zip
       Handler: index.gethtml
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Events:
         GetHtml:
           Type: Api
@@ -43,3 +44,16 @@ Resources:
                 uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ImplicitApiFunction.Arn}/invocations
               responses: {}
 
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: UserPoolName
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false

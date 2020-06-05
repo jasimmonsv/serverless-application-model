@@ -1,7 +1,9 @@
 import logging
 
-from samtranslator.model.exceptions import InvalidResourceException
+from samtranslator.model.exceptions import InvalidResourceException, InvalidDocumentException
 from enum import Enum
+
+LOG = logging.getLogger(__name__)
 
 
 class SamPlugins(object):
@@ -123,16 +125,17 @@ class SamPlugins(object):
         for plugin in self._plugins:
 
             if not hasattr(plugin, method_name):
-                raise NameError("'{}' method is not found in the plugin with name '{}'"
-                                .format(method_name, plugin.name))
+                raise NameError(
+                    "'{}' method is not found in the plugin with name '{}'".format(method_name, plugin.name)
+                )
 
             try:
                 getattr(plugin, method_name)(*args, **kwargs)
-            except InvalidResourceException as ex:
+            except (InvalidResourceException, InvalidDocumentException) as ex:
                 # Don't need to log these because they don't result in crashes
                 raise ex
             except Exception as ex:
-                logging.exception("Plugin '%s' raised an exception: %s", plugin.name, ex)
+                LOG.exception("Plugin '%s' raised an exception: %s", plugin.name, ex)
                 raise ex
 
     def __len__(self):
@@ -148,6 +151,7 @@ class LifeCycleEvents(Enum):
     """
     Enum of LifeCycleEvents
     """
+
     before_transform_template = "before_transform_template"
     before_transform_resource = "before_transform_resource"
     after_transform_template = "after_transform_template"

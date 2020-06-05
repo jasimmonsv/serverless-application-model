@@ -1,5 +1,9 @@
 {
   "Parameters": {
+    "something": {
+      "Default": "something", 
+      "Type": "String"
+    }, 
     "MyStageName": {
       "Default": "Production", 
       "Type": "String"
@@ -9,18 +13,18 @@
     "GetHtmlFunction": {
       "Type": "AWS::Lambda::Function", 
       "Properties": {
+        "Handler": "index.gethtml", 
         "Code": {
           "S3Bucket": "sam-demo-bucket", 
           "S3Key": "webpage.zip"
         }, 
-        "Handler": "index.gethtml", 
         "Role": {
           "Fn::GetAtt": [
             "GetHtmlFunctionRole", 
             "Arn"
           ]
         }, 
-        "Runtime": "nodejs4.3", 
+        "Runtime": "nodejs12.x",
         "Tags": [
           {
             "Value": "SAM", 
@@ -42,28 +46,7 @@
           "Ref": "MyStageName"
         }
       }
-    }, 
-    "GetHtmlFunctionGetHtmlPermissionTest": {
-      "Type": "AWS::Lambda::Permission", 
-      "Properties": {
-        "Action": "lambda:invokeFunction", 
-        "Principal": "apigateway.amazonaws.com", 
-        "FunctionName": {
-          "Ref": "GetHtmlFunction"
-        }, 
-        "SourceArn": {
-          "Fn::Sub": [
-            "arn:aws-us-gov:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/", 
-            {
-              "__Stage__": "*", 
-              "__ApiId__": {
-                "Ref": "GetHtmlApi"
-              }
-            }
-          ]
-        }
-      }
-    }, 
+    },
     "GetHtmlApiDeploymentf117c932f7": {
       "Type": "AWS::ApiGateway::Deployment", 
       "Properties": {
@@ -80,7 +63,14 @@
         "ManagedPolicyArns": [
           "arn:aws-us-gov:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole", 
           "arn:aws-us-gov:iam::aws:policy/AmazonDynamoDBReadOnlyAccess"
-        ], 
+        ],
+        "Tags": [
+          {
+            "Value": "SAM",
+            "Key": "lambda:createdBy"
+          }
+        ],
+
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17", 
           "Statement": [
@@ -119,7 +109,7 @@
     "GetHtmlFunctionGetHtmlPermissionStage": {
       "Type": "AWS::Lambda::Permission", 
       "Properties": {
-        "Action": "lambda:invokeFunction", 
+        "Action": "lambda:InvokeFunction", 
         "Principal": "apigateway.amazonaws.com", 
         "FunctionName": {
           "Ref": "GetHtmlFunction"
@@ -128,9 +118,7 @@
           "Fn::Sub": [
             "arn:aws-us-gov:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/", 
             {
-              "__Stage__": {
-                "Ref": "MyStageName"
-              }, 
+              "__Stage__": "*",
               "__ApiId__": {
                 "Ref": "GetHtmlApi"
               }
@@ -160,17 +148,17 @@
     "GetHtmlApiStage": {
       "Type": "AWS::ApiGateway::Stage", 
       "Properties": {
+        "DeploymentId": {
+          "Ref": "GetHtmlApiDeploymentf117c932f7"
+        }, 
+        "RestApiId": {
+          "Ref": "GetHtmlApi"
+        }, 
         "Variables": {
           "EndpointUri": {
             "Ref": "something"
           }, 
           "EndpointUri2": "http://example.com"
-        }, 
-        "RestApiId": {
-          "Ref": "GetHtmlApi"
-        }, 
-        "DeploymentId": {
-          "Ref": "GetHtmlApiDeploymentf117c932f7"
         }, 
         "StageName": {
           "Ref": "MyStageName"

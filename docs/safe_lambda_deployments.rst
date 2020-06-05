@@ -62,7 +62,9 @@ This will:
 
 - Create an Alias with ``<alias-name>`` 
 - Create & publish a Lambda version with the latest code & configuration 
-  derived from the ``CodeUri`` property 
+  derived from the ``CodeUri`` property. Optionally it is possible to specify
+  property `AutoPublishCodeSha256` that will override the hash computed for
+  Lambda ``CodeUri`` property.
 - Point the Alias to the latest published version 
 - Point all event sources to the Alias & not to the function 
 - When the ``CodeUri`` property of ``AWS::Serverless::Function`` changes, 
@@ -93,7 +95,7 @@ resource:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
-      Runtime: nodejs6.10
+      Runtime: nodejs12.x
       AutoPublishAlias: live
       DeploymentPreference:
         Type: Linear10PercentEvery10Minutes
@@ -156,17 +158,17 @@ resource:
             Action:
               - "codedeploy:PutLifecycleEventHookExecutionStatus"
             Resource:
-              !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*'
+              !Sub 'arn:${AWS::Partition}:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*'
         - Version: "2012-10-17"
           Statement:
           - Effect: "Allow"
             Action:
               - "lambda:InvokeFunction"
-            Resource: !Ref MyLambdaFunction.Version
-      Runtime: nodejs6.10
+            Resource: !GetAtt MyLambdaFunction.Arn
+      Runtime: nodejs12.x
       FunctionName: 'CodeDeployHook_preTrafficHook'
       DeploymentPreference:
-        Enabled: false
+        Enabled: False
         Role: ""
       Environment:
         Variables:
@@ -223,7 +225,8 @@ They work as follows:
 - **AllAtOnce**: This is an instant shifting of 100% of traffic to new version. This is useful if you want to run
   run pre/post hooks but don't want a gradual deployment. If you have a pipeline, you can set Beta/Gamma stages to 
   deploy instantly because the speed of deployments matter more than safety here.
-
+- **Custom**: Aside from Above mentioned Configurations, Custom Codedeploy configuration are also supported.
+  (Example. Type: CustomCodeDeployConfiguration)
 
 PreTraffic & PostTraffic Hooks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -272,7 +275,7 @@ Hooks are extremely powerful because:
 
     FunctionName: 'CodeDeployHook_preTrafficHook'
     DeploymentPreference:
-        Enabled: false
+        Enabled: False
     Policies:
         - Version: "2012-10-17"
           Statement:
@@ -285,7 +288,7 @@ Hooks are extremely powerful because:
           - Effect: "Allow"
             Action:
               - "lambda:InvokeFunction"
-            Resource: !Ref MyLambdaFunction.Version
+            Resource: !GetAtt MyLambdaFunction.Arn
 
 Checkout the lambda_safe_deployments_ folder for an example for how to create SAM template that contains a hook function.
 

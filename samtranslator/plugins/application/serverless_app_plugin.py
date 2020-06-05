@@ -1,13 +1,19 @@
 import boto3
+import json
 from botocore.exceptions import ClientError, EndpointConnectionError
 import logging
 from time import sleep, time
+import copy
 
 from samtranslator.model.exceptions import InvalidResourceException
 from samtranslator.plugins import BasePlugin
 from samtranslator.plugins.exceptions import InvalidPluginException
 from samtranslator.public.sdk.resource import SamResourceType
 from samtranslator.public.sdk.template import SamTemplate
+from samtranslator.intrinsics.resolver import IntrinsicsResolver
+from samtranslator.intrinsics.actions import FindInMapAction
+
+LOG = logging.getLogger(__name__)
 
 
 class ServerlessAppPlugin(BasePlugin):
@@ -30,12 +36,12 @@ class ServerlessAppPlugin(BasePlugin):
     # CloudFormation times out on transforms after 2 minutes, so setting this
     # timeout below that to leave some buffer
     TEMPLATE_WAIT_TIMEOUT_SECONDS = 105
-    APPLICATION_ID_KEY = 'ApplicationId'
-    SEMANTIC_VERSION_KEY = 'SemanticVersion'
-    LOCATION_KEY = 'Location'
-    TEMPLATE_URL_KEY = 'TemplateUrl'
+    APPLICATION_ID_KEY = "ApplicationId"
+    SEMANTIC_VERSION_KEY = "SemanticVersion"
+    LOCATION_KEY = "Location"
+    TEMPLATE_URL_KEY = "TemplateUrl"
 
-    def __init__(self, sar_client=None, wait_for_template_active_status=False, validate_only=False):
+    def __init__(self, sar_client=None, wait_for_template_active_status=False, validate_only=False, parameters={}):
         """
         Initialize the plugin.
 
@@ -50,6 +56,7 @@ class ServerlessAppPlugin(BasePlugin):
         self._sar_client = sar_client
         self._wait_for_template_active_status = wait_for_template_active_status
         self._validate_only = validate_only
+        self._parameters = parameters
 
         # make sure the flag combination makes sense
         if self._validate_only is True and self._wait_for_template_active_status is True:
@@ -68,29 +75,59 @@ class ServerlessAppPlugin(BasePlugin):
         :return: Nothing
         """
         template = SamTemplate(template_dict)
+        intrinsic_resolvers = self._get_intrinsic_resolvers(template_dict.get("Mappings", {}))
 
         service_call = None
         if self._validate_only:
             service_call = self._handle_get_application_request
         else:
             service_call = self._handle_create_cfn_template_request
-        for logical_id, app in template.iterate(SamResourceType.Application.value):
+        for logical_id, app in template.iterate({SamResourceType.Application.value}):
             if not self._can_process_application(app):
                 # Handle these cases in the on_before_transform_resource event
                 continue
 
-            app_id = app.properties[self.LOCATION_KEY].get(self.APPLICATION_ID_KEY)
-            semver = app.properties[self.LOCATION_KEY].get(self.SEMANTIC_VERSION_KEY)
+            app_id = self._replace_value(
+                app.properties[self.LOCATION_KEY], self.APPLICATION_ID_KEY, intrinsic_resolvers
+            )
+
+            semver = self._replace_value(
+                app.properties[self.LOCATION_KEY], self.SEMANTIC_VERSION_KEY, intrinsic_resolvers
+            )
+
+            if isinstance(app_id, dict) or isinstance(semver, dict):
+                key = (json.dumps(app_id), json.dumps(semver))
+                self._applications[key] = False
+                continue
+
             key = (app_id, semver)
+
             if key not in self._applications:
                 try:
                     # Lazy initialization of the client- create it when it is needed
                     if not self._sar_client:
-                        self._sar_client = boto3.client('serverlessrepo')
+                        self._sar_client = boto3.client("serverlessrepo")
                     service_call(app_id, semver, key, logical_id)
                 except InvalidResourceException as e:
                     # Catch all InvalidResourceExceptions, raise those in the before_resource_transform target.
                     self._applications[key] = e
+
+    def _replace_value(self, input_dict, key, intrinsic_resolvers):
+        value = self._resolve_location_value(input_dict.get(key), intrinsic_resolvers)
+        input_dict[key] = value
+        return value
+
+    def _get_intrinsic_resolvers(self, mappings):
+        return [
+            IntrinsicsResolver(self._parameters),
+            IntrinsicsResolver(mappings, {FindInMapAction.intrinsic_name: FindInMapAction()}),
+        ]
+
+    def _resolve_location_value(self, value, intrinsic_resolvers):
+        resolved_value = copy.deepcopy(value)
+        for intrinsic_resolver in intrinsic_resolvers:
+            resolved_value = intrinsic_resolver.resolve_parameter_refs(resolved_value)
+        return resolved_value
 
     def _can_process_application(self, app):
         """
@@ -98,10 +135,14 @@ class ServerlessAppPlugin(BasePlugin):
 
         :param dict app: the application and its properties
         """
-        return (self.LOCATION_KEY in app.properties and
-                isinstance(app.properties[self.LOCATION_KEY], dict) and
-                self.APPLICATION_ID_KEY in app.properties[self.LOCATION_KEY] and
-                self.SEMANTIC_VERSION_KEY in app.properties[self.LOCATION_KEY])
+        return (
+            self.LOCATION_KEY in app.properties
+            and isinstance(app.properties[self.LOCATION_KEY], dict)
+            and self.APPLICATION_ID_KEY in app.properties[self.LOCATION_KEY]
+            and app.properties[self.LOCATION_KEY][self.APPLICATION_ID_KEY] is not None
+            and self.SEMANTIC_VERSION_KEY in app.properties[self.LOCATION_KEY]
+            and app.properties[self.LOCATION_KEY][self.SEMANTIC_VERSION_KEY] is not None
+        )
 
     def _handle_get_application_request(self, app_id, semver, key, logical_id):
         """
@@ -115,17 +156,17 @@ class ServerlessAppPlugin(BasePlugin):
         :param string key: The dictionary key consisting of (ApplicationId, SemanticVersion)
         :param string logical_id: the logical_id of this application resource
         """
-        get_application = (lambda app_id, semver: self._sar_client.get_application(
-                                   ApplicationId=self._sanitize_sar_str_param(app_id),
-                                   SemanticVersion=self._sanitize_sar_str_param(semver)))
+        get_application = lambda app_id, semver: self._sar_client.get_application(
+            ApplicationId=self._sanitize_sar_str_param(app_id), SemanticVersion=self._sanitize_sar_str_param(semver)
+        )
         try:
             self._sar_service_call(get_application, logical_id, app_id, semver)
-            self._applications[key] = {'Available'}
+            self._applications[key] = {"Available"}
         except EndpointConnectionError as e:
             # No internet connection. Don't break verification, but do show a warning.
             warning_message = "{}. Unable to verify access to {}/{}.".format(e, app_id, semver)
-            logging.warning(warning_message)
-            self._applications[key] = {'Unable to verify'}
+            LOG.warning(warning_message)
+            self._applications[key] = {"Unable to verify"}
 
     def _handle_create_cfn_template_request(self, app_id, semver, key, logical_id):
         """
@@ -136,14 +177,13 @@ class ServerlessAppPlugin(BasePlugin):
         :param string key: The dictionary key consisting of (ApplicationId, SemanticVersion)
         :param string logical_id: the logical_id of this application resource
         """
-        create_cfn_template = (lambda app_id, semver: self._sar_client.create_cloud_formation_template(
-            ApplicationId=self._sanitize_sar_str_param(app_id),
-            SemanticVersion=self._sanitize_sar_str_param(semver)
-        ))
+        create_cfn_template = lambda app_id, semver: self._sar_client.create_cloud_formation_template(
+            ApplicationId=self._sanitize_sar_str_param(app_id), SemanticVersion=self._sanitize_sar_str_param(semver)
+        )
         response = self._sar_service_call(create_cfn_template, logical_id, app_id, semver)
         self._applications[key] = response[self.TEMPLATE_URL_KEY]
-        if response['Status'] != "ACTIVE":
-            self._in_progress_templates.append((response[self.APPLICATION_ID_KEY], response['TemplateId']))
+        if response["Status"] != "ACTIVE":
+            self._in_progress_templates.append((response[self.APPLICATION_ID_KEY], response["TemplateId"]))
 
     def _sanitize_sar_str_param(self, param):
         """
@@ -184,15 +224,34 @@ class ServerlessAppPlugin(BasePlugin):
             return
 
         # If it is a dictionary, check for other required parameters
-        self._check_for_dictionary_key(logical_id, resource_properties[self.LOCATION_KEY],
-                                       [self.APPLICATION_ID_KEY, self.SEMANTIC_VERSION_KEY])
+        self._check_for_dictionary_key(
+            logical_id, resource_properties[self.LOCATION_KEY], [self.APPLICATION_ID_KEY, self.SEMANTIC_VERSION_KEY]
+        )
 
         app_id = resource_properties[self.LOCATION_KEY].get(self.APPLICATION_ID_KEY)
+
         if not app_id:
             raise InvalidResourceException(logical_id, "Property 'ApplicationId' cannot be blank.")
+
+        if isinstance(app_id, dict):
+            raise InvalidResourceException(
+                logical_id,
+                "Property 'ApplicationId' cannot be resolved. Only FindInMap "
+                "and Ref intrinsic functions are supported.",
+            )
+
         semver = resource_properties[self.LOCATION_KEY].get(self.SEMANTIC_VERSION_KEY)
+
         if not semver:
-            raise InvalidResourceException(logical_id, "Property 'SemanticVersion cannot be blank.")
+            raise InvalidResourceException(logical_id, "Property 'SemanticVersion' cannot be blank.")
+
+        if isinstance(semver, dict):
+            raise InvalidResourceException(
+                logical_id,
+                "Property 'SemanticVersion' cannot be resolved. Only FindInMap "
+                "and Ref intrinsic functions are supported.",
+            )
+
         key = (app_id, semver)
 
         # Throw any resource exceptions saved from the before_transform_template event
@@ -214,8 +273,9 @@ class ServerlessAppPlugin(BasePlugin):
         """
         for key in keys:
             if key not in dictionary:
-                raise InvalidResourceException(logical_id, 'Resource is missing the required [{}] '
-                                                           'property.'.format(key))
+                raise InvalidResourceException(
+                    logical_id, "Resource is missing the required [{}] " "property.".format(key)
+                )
 
     def on_after_transform_template(self, template):
         """
@@ -234,10 +294,10 @@ class ServerlessAppPlugin(BasePlugin):
 
                 # Check each resource to make sure it's active
                 for application_id, template_id in temp:
-                    get_cfn_template = (lambda application_id, template_id:
-                                        self._sar_client.get_cloud_formation_template(
-                                            ApplicationId=self._sanitize_sar_str_param(application_id),
-                                            TemplateId=self._sanitize_sar_str_param(template_id)))
+                    get_cfn_template = lambda application_id, template_id: self._sar_client.get_cloud_formation_template(
+                        ApplicationId=self._sanitize_sar_str_param(application_id),
+                        TemplateId=self._sanitize_sar_str_param(template_id),
+                    )
                     response = self._sar_service_call(get_cfn_template, application_id, application_id, template_id)
                     self._handle_get_cfn_template_response(response, application_id, template_id)
 
@@ -251,8 +311,9 @@ class ServerlessAppPlugin(BasePlugin):
             # Not all templates reached active status
             if len(self._in_progress_templates) != 0:
                 application_ids = [items[0] for items in self._in_progress_templates]
-                raise InvalidResourceException(application_ids, "Timed out waiting for nested stack templates "
-                                                                "to reach ACTIVE status.")
+                raise InvalidResourceException(
+                    application_ids, "Timed out waiting for nested stack templates " "to reach ACTIVE status."
+                )
 
     def _handle_get_cfn_template_response(self, response, application_id, template_id):
         """
@@ -262,12 +323,14 @@ class ServerlessAppPlugin(BasePlugin):
         :param string application_id: the ApplicationId
         :param string template_id: the unique TemplateId for this application
         """
-        status = response['Status']
+        status = response["Status"]
         if status != "ACTIVE":
             # Other options are PREPARING and EXPIRED.
-            if status == 'EXPIRED':
-                message = ("Template for {} with id {} returned status: {}. Cannot access an expired "
-                           "template.".format(application_id, template_id, status))
+            if status == "EXPIRED":
+                message = (
+                    "Template for {} with id {} returned status: {}. Cannot access an expired "
+                    "template.".format(application_id, template_id, status)
+                )
                 raise InvalidResourceException(application_id, message)
             self._in_progress_templates.append((application_id, template_id))
 
@@ -282,15 +345,15 @@ class ServerlessAppPlugin(BasePlugin):
         """
         try:
             response = service_call_lambda(*args)
-            logging.info(response)
+            LOG.info(response)
             return response
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code in ('AccessDeniedException', 'NotFoundException'):
-                raise InvalidResourceException(logical_id, e.response['Error']['Message'])
+            error_code = e.response["Error"]["Code"]
+            if error_code in ("AccessDeniedException", "NotFoundException"):
+                raise InvalidResourceException(logical_id, e.response["Error"]["Message"])
 
             # 'ForbiddenException'- SAR rejects connection
-            logging.exception(e)
+            LOG.exception(e)
             raise e
 
     def _resource_is_supported(self, resource_type):

@@ -7,7 +7,7 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/code.zip
       Handler: index.handler
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Events:
         MyApi:
           Type: Api
@@ -41,8 +41,8 @@ Resources:
         - { "AttributeName" : "id", "KeyType" : "HASH"}
 
       ProvisionedThroughput:
-        ReadCapacityUnits: "5"
-        WriteCapacityUnits: "5"
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
 
       StreamSpecification:
         StreamViewType: "NEW_IMAGE"

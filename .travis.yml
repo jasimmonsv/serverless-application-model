@@ -1,9 +1,16 @@
 # Enable container based builds
 sudo: false
+dist: xenial   # required for Python >= 3.7
 language: python
 
 matrix:
   include:
+    - python: 3.8
+      env:
+        - TOXENV=py38
+    - python: 3.7
+      env:
+        - TOXENV=py37
     - python: 3.6
       env:
         - TOXENV=py36
@@ -14,6 +21,12 @@ matrix:
 
 install:
 # Install the code requirements
+- mkdir $HOME/bin-black
+- wget -O $HOME/bin-black/black https://github.com/python/black/releases/download/19.10b0/black
+- chmod +x $HOME/bin-black/black
+- export PATH=$PATH:$HOME/bin-black
+- black --version
+
 - make init
 
 # Install Docs requirements
@@ -21,17 +34,3 @@ install:
 script:
 # Runs unit tests
 - tox
-
-# Build docs pages only from master branch
-- if [ "$TRAVIS_BRANCH" = "master" ]; then make build-docs; fi
-
-deploy:
-# Deploy the docs to Github Pages *only* from master branch
-- provider: pages
-  skip_cleanup: true
-  local_dir: docs/website/_build/html
-  github_token: $GITHUB_TOKEN # Set in travis-ci.org dashboard
-  keep-history: true
-  on:
-      branch: master
-

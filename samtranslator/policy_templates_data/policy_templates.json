@@ -62,6 +62,21 @@
         ]
       }
     },
+    "CloudWatchDescribeAlarmHistoryPolicy": {
+      "Description": "Gives permissions to describe CloudWatch alarm history",
+      "Parameters": {},
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "cloudwatch:DescribeAlarmHistory"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    },
     "CloudWatchPutMetricPolicy": {
       "Description": "Gives permissions to put metrics to CloudWatch",
       "Parameters": {
@@ -117,7 +132,8 @@
               "dynamodb:UpdateItem",
               "dynamodb:BatchWriteItem",
               "dynamodb:BatchGetItem",
-              "dynamodb:DescribeTable"
+              "dynamodb:DescribeTable",
+              "dynamodb:ConditionCheckItem"
             ],
             "Resource": [
               {
@@ -162,6 +178,48 @@
               "dynamodb:Query",
               "dynamodb:BatchGetItem",
               "dynamodb:DescribeTable"
+            ],
+            "Resource": [
+              {
+                "Fn::Sub": [
+                  "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}",
+                  {
+                    "tableName": {
+                      "Ref": "TableName"
+                    }
+                  }
+                ]
+              },
+              {
+                "Fn::Sub": [
+                  "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}/index/*",
+                  {
+                    "tableName": {
+                      "Ref": "TableName"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "DynamoDBWritePolicy": {
+      "Description": "Gives write only access to a DynamoDB Table",
+      "Parameters": {
+        "TableName": {
+          "Description": "Name of the DynamoDB Table"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "dynamodb:PutItem",
+              "dynamodb:UpdateItem",
+              "dynamodb:BatchWriteItem"
             ],
             "Resource": [
               {
@@ -246,7 +304,7 @@
       }
     },
     "ElasticsearchHttpPostPolicy": {
-      "Description": "Gives POST permissions to Elasticsearch",
+      "Description": "Gives POST and PUT permissions to Elasticsearch",
       "Parameters": {
         "DomainName": {
           "Description": "Name of Domain"
@@ -257,11 +315,12 @@
           {
             "Effect": "Allow",
             "Action": [
-              "es:ESHttpPost"
+              "es:ESHttpPost",
+              "es:ESHttpPut"
             ],
             "Resource": {
               "Fn::Sub": [
-                "arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${domainName}",
+                "arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${domainName}/*",
                 {
                   "domainName": {
                     "Ref": "DomainName"
@@ -290,6 +349,48 @@
               "s3:GetBucketLocation",
               "s3:GetObjectVersion",
               "s3:GetLifecycleConfiguration"
+            ],
+            "Resource": [
+              {
+                "Fn::Sub": [
+                  "arn:${AWS::Partition}:s3:::${bucketName}",
+                  {
+                    "bucketName": {
+                      "Ref": "BucketName"
+                    }
+                  }
+                ]
+              },
+              {
+                "Fn::Sub": [
+                  "arn:${AWS::Partition}:s3:::${bucketName}/*",
+                  {
+                    "bucketName": {
+                      "Ref": "BucketName"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "S3WritePolicy": {
+      "Description": "Gives write permissions to objects in the S3 Bucket",
+      "Parameters": {
+        "BucketName": {
+          "Description": "Name of the Bucket"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:PutObject",
+              "s3:PutObjectAcl",
+              "s3:PutLifecycleConfiguration"
             ],
             "Resource": [
               {
@@ -607,18 +708,33 @@
             "Action": [
               "dynamodb:DescribeStream",
               "dynamodb:GetRecords",
-              "dynamodb:GetShardIterator",
-              "dynamodb:ListStreams"
+              "dynamodb:GetShardIterator"
             ],
             "Resource": {
               "Fn::Sub": [
-                "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}/${streamName}",
+                "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}/stream/${streamName}",
                 {
                   "tableName": {
                     "Ref": "TableName"
                   },
                   "streamName": {
                     "Ref": "StreamName"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "dynamodb:ListStreams"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}/stream/*",
+                {
+                  "tableName": {
+                    "Ref": "TableName"
                   }
                 }
               ]
@@ -650,6 +766,7 @@
             "Effect": "Allow",
             "Action": [
               "kinesis:DescribeStream",
+              "kinesis:DescribeStreamSummary",
               "kinesis:GetRecords",
               "kinesis:GetShardIterator"
             ],
@@ -747,6 +864,7 @@
               "kinesis:DecreaseStreamRetentionPeriod",
               "kinesis:DeleteStream",
               "kinesis:DescribeStream",
+              "kinesis:DescribeStreamSummary",
               "kinesis:GetShardIterator",
               "kinesis:IncreaseStreamRetentionPeriod",
               "kinesis:ListTagsForStream",
@@ -781,6 +899,32 @@
         "Statement": [
           {
             "Action": "kms:Decrypt",
+            "Effect": "Allow",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${keyId}",
+                {
+                  "keyId": {
+                    "Ref": "KeyId"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "KMSEncryptPolicy": {
+      "Description": "Gives permission to encrypt with KMS Key",
+      "Parameters": {
+        "KeyId": {
+          "Description": "ID of the KMS Key"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": "kms:Encrypt",
             "Effect": "Allow",
             "Resource": {
               "Fn::Sub": [
@@ -858,7 +1002,13 @@
               "s3:GetObjectVersion",
               "s3:PutObject",
               "s3:PutObjectAcl",
-              "s3:DeleteObject"
+              "s3:DeleteObject",
+	      "s3:DeleteObjectTagging",
+	      "s3:DeleteObjectVersionTagging",
+	      "s3:GetObjectTagging",
+	      "s3:GetObjectVersionTagging",
+	      "s3:PutObjectTagging",
+	      "s3:PutObjectVersionTagging"
             ],
             "Resource": [
               {
@@ -927,9 +1077,11 @@
             "Action": [
               "serverlessrepo:CreateApplication",
               "serverlessrepo:CreateApplicationVersion",
+              "serverlessrepo:UpdateApplication",
               "serverlessrepo:GetApplication",
               "serverlessrepo:ListApplications",
-              "serverlessrepo:ListApplicationVersions"
+              "serverlessrepo:ListApplicationVersions",
+              "serverlessrepo:ListApplicationDependencies"
             ],
             "Resource": [
               {
@@ -1049,9 +1201,7 @@
     "RekognitionFacesPolicy": {
       "Description": "Gives permission to compare and detect faces and labels",
       "Parameters": {
-        "CollectionId": {
-          "Description": "ID of the collection"
-        }
+
       },
       "Definition": {
         "Statement": [
@@ -1061,16 +1211,7 @@
               "rekognition:CompareFaces",
               "rekognition:DetectFaces"
             ],
-            "Resource": {
-              "Fn::Sub": [
-                "arn:${AWS::Partition}:rekognition:${AWS::Region}:${AWS::AccountId}:collection/${collectionId}",
-                {
-                  "collectionId": {
-                    "Ref": "CollectionId"
-                  }
-                }
-              ]
-            }
+            "Resource": "*"
           }
         ]
       }
@@ -1545,7 +1686,8 @@
             "Effect": "Allow",
             "Action": [
               "ssm:GetParameters",
-              "ssm:GetParameter"
+              "ssm:GetParameter",
+              "ssm:GetParametersByPath"
             ],
             "Resource": {
               "Fn::Sub": [
@@ -1557,6 +1699,564 @@
                 }
               ]
             }
+          }
+        ]
+      }
+    },
+    "StepFunctionsExecutionPolicy": {
+      "Description": "Gives permission to start a Step Functions state machine execution",
+      "Parameters": {
+        "StateMachineName": {
+          "Description":"The name of the state machine to execute."
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "states:StartExecution"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${stateMachineName}",
+                {
+                  "stateMachineName": {
+                    "Ref": "StateMachineName"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CodeCommitCrudPolicy": {
+      "Description": "Gives permissions to create/read/update/delete objects within a specific codecommit repository",
+      "Parameters": {
+        "RepositoryName": {
+          "Description": "Name of the CodeCommit Repository"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "codecommit:GitPull",
+              "codecommit:GitPush",
+              "codecommit:CreateBranch",
+              "codecommit:DeleteBranch",
+              "codecommit:GetBranch",
+              "codecommit:ListBranches",
+              "codecommit:MergeBranchesByFastForward",
+              "codecommit:MergeBranchesBySquash",
+              "codecommit:MergeBranchesByThreeWay",
+              "codecommit:UpdateDefaultBranch",
+              "codecommit:BatchDescribeMergeConflicts",
+              "codecommit:CreateUnreferencedMergeCommit",
+              "codecommit:DescribeMergeConflicts",
+              "codecommit:GetMergeCommit",
+              "codecommit:GetMergeOptions",
+              "codecommit:BatchGetPullRequests",
+              "codecommit:CreatePullRequest",
+              "codecommit:DescribePullRequestEvents",
+              "codecommit:GetCommentsForPullRequest",
+              "codecommit:GetCommitsFromMergeBase",
+              "codecommit:GetMergeConflicts",
+              "codecommit:GetPullRequest",
+              "codecommit:ListPullRequests",
+              "codecommit:MergePullRequestByFastForward",
+              "codecommit:MergePullRequestBySquash",
+              "codecommit:MergePullRequestByThreeWay",
+              "codecommit:PostCommentForPullRequest",
+              "codecommit:UpdatePullRequestDescription",
+              "codecommit:UpdatePullRequestStatus",
+              "codecommit:UpdatePullRequestTitle",
+              "codecommit:DeleteFile",
+              "codecommit:GetBlob",
+              "codecommit:GetFile",
+              "codecommit:GetFolder",
+              "codecommit:PutFile",
+              "codecommit:DeleteCommentContent",
+              "codecommit:GetComment",
+              "codecommit:GetCommentsForComparedCommit",
+              "codecommit:PostCommentForComparedCommit",
+              "codecommit:PostCommentReply",
+              "codecommit:UpdateComment",
+              "codecommit:BatchGetCommits",
+              "codecommit:CreateCommit",
+              "codecommit:GetCommit",
+              "codecommit:GetCommitHistory",
+              "codecommit:GetDifferences",
+              "codecommit:GetObjectIdentifier",
+              "codecommit:GetReferences",
+              "codecommit:GetTree",
+              "codecommit:GetRepository",
+              "codecommit:UpdateRepositoryDescription",
+              "codecommit:ListTagsForResource",
+              "codecommit:TagResource",
+              "codecommit:UntagResource",
+              "codecommit:GetRepositoryTriggers",
+              "codecommit:PutRepositoryTriggers",
+              "codecommit:TestRepositoryTriggers",
+              "codecommit:GetBranch",
+              "codecommit:GetCommit",
+              "codecommit:UploadArchive",
+              "codecommit:GetUploadArchiveStatus",
+              "codecommit:CancelUploadArchive"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:codecommit:${AWS::Region}:${AWS::AccountId}:${repositoryName}",
+                {
+                  "repositoryName": {
+                    "Ref": "RepositoryName"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CodeCommitReadPolicy": {
+      "Description": "Gives permissions to read objects within a specific codecommit repository",
+      "Parameters": {
+        "RepositoryName": {
+          "Description": "Name of the CodeCommit Repository"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "codecommit:GitPull",
+              "codecommit:GetBranch",
+              "codecommit:ListBranches",
+              "codecommit:BatchDescribeMergeConflicts",
+              "codecommit:DescribeMergeConflicts",
+              "codecommit:GetMergeCommit",
+              "codecommit:GetMergeOptions",
+              "codecommit:BatchGetPullRequests",
+              "codecommit:DescribePullRequestEvents",
+              "codecommit:GetCommentsForPullRequest",
+              "codecommit:GetCommitsFromMergeBase",
+              "codecommit:GetMergeConflicts",
+              "codecommit:GetPullRequest",
+              "codecommit:ListPullRequests",
+              "codecommit:GetBlob",
+              "codecommit:GetFile",
+              "codecommit:GetFolder",
+              "codecommit:GetComment",
+              "codecommit:GetCommentsForComparedCommit",
+              "codecommit:BatchGetCommits",
+              "codecommit:GetCommit",
+              "codecommit:GetCommitHistory",
+              "codecommit:GetDifferences",
+              "codecommit:GetObjectIdentifier",
+              "codecommit:GetReferences",
+              "codecommit:GetTree",
+              "codecommit:GetRepository",
+              "codecommit:ListTagsForResource",
+              "codecommit:GetRepositoryTriggers",
+              "codecommit:TestRepositoryTriggers",
+              "codecommit:GetBranch",
+              "codecommit:GetCommit",
+              "codecommit:GetUploadArchiveStatus"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:codecommit:${AWS::Region}:${AWS::AccountId}:${repositoryName}",
+                {
+                  "repositoryName": {
+                    "Ref": "RepositoryName"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "AthenaQueryPolicy": {
+      "Description": "Gives permissions to execute Athena queries",
+      "Parameters": {
+        "WorkGroupName": {
+          "Description": "Name of the Athena Workgroup"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "athena:ListWorkGroups",
+              "athena:GetExecutionEngine",
+              "athena:GetExecutionEngines",
+              "athena:GetNamespace",
+              "athena:GetCatalogs",
+              "athena:GetNamespaces",
+              "athena:GetTables",
+              "athena:GetTable"
+            ],
+            "Resource": "*"
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "athena:StartQueryExecution",
+              "athena:GetQueryResults",
+              "athena:DeleteNamedQuery",
+              "athena:GetNamedQuery",
+              "athena:ListQueryExecutions",
+              "athena:StopQueryExecution",
+              "athena:GetQueryResultsStream",
+              "athena:ListNamedQueries",
+              "athena:CreateNamedQuery",
+              "athena:GetQueryExecution",
+              "athena:BatchGetNamedQuery",
+              "athena:BatchGetQueryExecution",
+              "athena:GetWorkGroup"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${workgroupName}",
+                {
+                  "workgroupName": {
+                    "Ref": "WorkGroupName"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TextractPolicy": {
+      "Description": "Gives full access to Textract",
+      "Parameters": {
+
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "textract:*"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    },
+    "TextractDetectAnalyzePolicy": {
+      "Description": "Gives access to detect and analyze documents with Textract",
+      "Parameters": {
+
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "textract:DetectDocumentText",
+              "textract:StartDocumentTextDetection",
+              "textract:StartDocumentAnalysis",
+              "textract:AnalyzeDocument"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    },
+    "TextractGetResultPolicy": {
+      "Description": "Gives access to get detected and analyzed documents from Textract",
+      "Parameters": {
+
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "textract:GetDocumentTextDetection",
+              "textract:GetDocumentAnalysis"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    },
+    "EventBridgePutEventsPolicy": {
+      "Description": "Gives permissions to send events to EventBridge",
+      "Parameters": {
+        "EventBusName": {
+          "Description": "Name of the EventBridge EventBus"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "events:PutEvents",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/${eventBusName}",
+                {
+                  "eventBusName": {
+                    "Ref": "EventBusName"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceModifyInstanceFleetPolicy": {
+      "Description": "Gives permission to list details and modify capacities for instance fleets within a cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": [
+              "elasticmapreduce:ModifyInstanceFleet",
+              "elasticmapreduce:ListInstanceFleets"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceSetTerminationProtectionPolicy": {
+      "Description": "Gives permission to set termination protection for a cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": "elasticmapreduce:SetTerminationProtection",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceModifyInstanceGroupsPolicy": {
+      "Description": "Gives permission to list details and modify settings for instance groups within a cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": [
+              "elasticmapreduce:ModifyInstanceGroups",
+              "elasticmapreduce:ListInstanceGroups"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceCancelStepsPolicy": {
+      "Description": "Gives permission to cancel a pending step or steps in a running cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": "elasticmapreduce:CancelSteps",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceTerminateJobFlowsPolicy": {
+      "Description": "Gives permission to shut down a cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": "elasticmapreduce:TerminateJobFlows",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "ElasticMapReduceAddJobFlowStepsPolicy": {
+      "Description": "Gives permission to add new steps to a running cluster",
+      "Parameters": {
+        "ClusterId": {
+          "Description": "The unique identifier of the cluster"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": "elasticmapreduce:AddJobFlowSteps",
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:elasticmapreduce:${AWS::Region}:${AWS::AccountId}:cluster/${clusterId}",
+                {
+                  "clusterId": {
+                    "Ref": "ClusterId"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "SageMakerCreateEndpointPolicy": {
+      "Description": "Gives permission to create an endpoint in SageMaker",
+      "Parameters": {
+        "EndpointName": {
+          "Description": "Name of the SageMaker endpoint"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": [
+              "sagemaker:CreateEndpoint"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${endpointName}",
+                {
+                  "endpointName": {
+                    "Ref": "EndpointName"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "SageMakerCreateEndpointConfigPolicy": {
+      "Description": "Gives permission to create an endpoint configuration in SageMaker",
+      "Parameters": {
+        "EndpointConfigName": {
+          "Description": "Name of the SageMaker endpoint configuration"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": [
+              "sagemaker:CreateEndpointConfig"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint-config/${endpointConfigName}",
+                {
+                  "endpointConfigName": {
+                    "Ref": "EndpointConfigName"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
+          }
+        ]
+      }
+    },
+    "EcsRunTaskPolicy": {
+      "Description": "Gives permission to start a new task for a task definition",
+      "Parameters": {
+        "TaskDefinition": {
+          "Description": "The family and revision (family:revision) of the task definition"
+        }
+      },
+      "Definition": {
+        "Statement": [
+          {
+            "Action": [
+              "ecs:RunTask"
+            ],
+            "Resource": {
+              "Fn::Sub": [
+                "arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/${taskDefinition}",
+                {
+                  "taskDefinition": {
+                    "Ref": "TaskDefinition"
+                  }
+                }
+              ]
+            },
+            "Effect": "Allow"
           }
         ]
       }

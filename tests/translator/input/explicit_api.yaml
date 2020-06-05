@@ -2,6 +2,9 @@ Parameters:
   MyStageName:
     Type: String
     Default: Production
+  something:
+    Type: String
+    Default: something
 
 Resources:
   GetHtmlFunction:
@@ -11,7 +14,7 @@ Resources:
         Bucket: sam-demo-bucket
         Key: webpage.zip
       Handler: index.gethtml
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Policies: AmazonDynamoDBReadOnlyAccess
       Events:
         GetHtml:

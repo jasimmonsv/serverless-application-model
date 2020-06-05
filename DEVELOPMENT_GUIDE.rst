@@ -17,10 +17,8 @@ steps manually.
 
 1. Install Python Versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Python 2.7 is our officially supported Python version. We have a future goal to support to Python3.6 but the code base
-currently does not work with Python3. To make future migration easier, any new code we write must be compatible with
-Python3. Follow the idioms from this `excellent cheatsheet`_ to make sure your code is compatible with both Python
-versions.
+Our officially supported Python versions are 2.7, 3.6, 3.7 and 3.8. Follow the idioms from this `excellent cheatsheet`_ to
+make sure your code is compatible with both Python 2.7 and 3 versions.
 
 Setup Python locally using `pyenv`_
 
@@ -28,8 +26,23 @@ Setup Python locally using `pyenv`_
 #. ``pyenv install 2.7.14``
 #. Make the Python version available in the project: ``pyenv local 2.7.14``
 
+2. Install Additional Tooling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Black
+~~~~~~~~
+We format our code using `Black`_ and verify the source code is black compliant
+in Appveyor during PRs. You can find installation instructions on `Black's docs`_.
 
-2. Activate Virtualenv
+After installing, you can check your formatting through our Makefile by running `make black-check`. To automatically update your code to match our formatting, please run `make black`. You can also integrate Black directly in your favorite IDE (instructions
+can be found `here`_)
+
+Pre-commit
+~~~~~~~~~~
+If you don't wish to manually run black on each pr or install black manually, we have integrated black into git hooks through `pre-commit`_.
+After installing pre-commit, run `pre-commit install` in the root of the project. This will install black for you and run the black formatting on
+commit.
+
+3. Activate Virtualenv
 ~~~~~~~~~~~~~~~~~~~~~~
 Virtualenv allows you to install required libraries outside of the Python installation. A good practice is to setup
 a different virtualenv for each project. `pyenv`_ comes with a handy plugin that can create virtualenv.
@@ -39,7 +52,7 @@ a different virtualenv for each project. `pyenv`_ comes with a handy plugin that
 #. [Optional] Automatically activate the virtualenv in for this folder: ``pyenv local samtranslator27``
 
 
-3. Install dependencies
+4. Install dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
 Install dependencies by running the following command. Make sure the Virtualenv you created above is active.
 
@@ -72,6 +85,10 @@ Tests are also a documentation of the success and failure cases, which is crucia
 .. _pyenv: https://github.com/pyenv/pyenv
 .. _tox: http://tox.readthedocs.io/en/latest/
 .. _installation instructions: https://github.com/pyenv/pyenv#installation
+.. _Black: https://github.com/python/black
+.. _Black's docs: https://black.readthedocs.io/en/stable/installation_and_usage.html
+.. _here: https://black.readthedocs.io/en/stable/editor_integration.html
+.. _pre-commit: https://pre-commit.com/
 
 Profiling
 ---------
@@ -80,7 +97,7 @@ Install snakeviz `pip install snakeviz`
 
 .. code-block:: shell
 
-   python -m cProfile -o sam_profile_results bin/sam-translate.py translate --input-file=tests/translator/input/alexa_skill.yaml --output-file=cfn-template.json
+   python -m cProfile -o sam_profile_results bin/sam-translate.py translate --template-file=tests/translator/input/alexa_skill.yaml --output-template=cfn-template.json
    snakeviz sam_profile_results
 
 Verifying transforms
@@ -96,7 +113,7 @@ If you make changes to the transformer and want to verify the resulting CloudFor
 
    # Transform your SAM template into a CloudFormation template
    # Replace "output-template.yaml" if you didn't run the package command above or specified a different path for --output-template-file
-   bin/sam-translate.py --input-file=output-template.yaml
+   bin/sam-translate.py --template-file=output-template.yaml
 
    # Deploy your transformed CloudFormation template
    # Replace MY_STACK_NAME with a unique name each time you deploy

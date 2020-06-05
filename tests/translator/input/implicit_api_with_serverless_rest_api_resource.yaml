@@ -4,7 +4,7 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/todo_list.zip
       Handler: index.restapi
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Policies: AmazonDynamoDBFullAccess
       Events:
         AddItem:
@@ -28,7 +28,7 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/todo_list.zip
       Handler: index.gethtml
-      Runtime: nodejs4.3
+      Runtime: nodejs12.x
       Policies: AmazonDynamoDBReadOnlyAccess
       Events:
         GetHtml:
@@ -42,4 +42,4 @@ Resources:
     Properties:
       CodeUri: s3://sam-demo-bucket/hello.zip
       Handler: hello.handler
-      Runtime: python2.7    
+      Runtime: python2.7
